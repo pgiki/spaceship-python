@@ -354,3 +354,76 @@ def test_unsupported_endpoints_raise():
         sp.domains.get_tld_list()
     with pytest.raises(NotSupportedError):
         sp.domains.suggest("example.com")
+
+
+def _dns_rows():
+    return {
+        "items": [
+            {"type": "A", "name": "@", "address": "1.2.3.4", "ttl": 3600},
+            {"type": "A", "name": "www", "address": "1.2.3.4", "ttl": 3600},
+            {"type": "MX", "name": "@", "address": "mail.example.com", "ttl": 3600},
+        ],
+        "total": 3,
+    }
+
+
+def test_dns_list_and_name_translation():
+    from spaceship import DNSRecord
+
+    sp = _transport(_ok(_dns_rows()))
+    rows = sp.dns.list("Example.COM.")
+    assert [r.fqdn("example.com") for r in rows] == [
+        "example.com",
+        "www.example.com",
+        "example.com",
+    ]
+    assert rows[0].to_api() == {
+        "type": "A",
+        "name": "@",
+        "address": "1.2.3.4",
+        "ttl": 3600,
+    }
+    assert DNSRecord(type="a", name="@", address="x").fqdn("example.com") == "example.com"
+
+
+def test_dns_add_and_delete_roundtrip():
+    sp = _transport(
+        _ok(_dns_rows()),
+        _response(204, None),
+        _ok(_dns_rows()),
+        _response(204, None),
+        _ok(_dns_rows()),
+    )
+
+    added = sp.dns.create_record("example.com", "shop", "A", "5.6.7.8", ttl=300)
+    assert added.name == "shop" and added.address == "5.6.7.8"
+    put_body = sp._http.request.call_args_list[1][1]["json"]
+    assert put_body["force"] is True
+    assert len(put_body["items"]) == 4
+    assert sp.dns.delete("example.com", record_type="MX") == 1
+    put_body2 = sp._http.request.call_args_list[3][1]["json"]
+    assert all(i["type"] != "MX" for i in put_body2["items"])
+    assert sp.dns.delete("example.com", record_type="NOPE") == 0
+
+
+def test_dns_set_a_records():
+    rows = _dns_rows()
+    sp = _transport(_ok(rows), _response(204, None), _ok({**rows, "items": []}))
+    out = sp.dns.set_a_records("example.com", "example.com", "9.9.9.9")
+    assert isinstance(out, list)
+    put_body = sp._http.request.call_args_list[1][1]["json"]
+    a_rows = [i for i in put_body["items"] if i["type"] == "A"]
+    assert {(i["name"], i["address"]) for i in a_rows} == {
+        ("@", "9.9.9.9"),
+        ("www", "9.9.9.9"),
+    }
+
+
+def test_dns_delete_exact():
+    sp = _transport(_response(204, None))
+    sp.dns.delete_exact("example.com", [{"type": "A", "name": "@", "address": "1.2.3.4"}])
+    call = sp._http.request.call_args
+    assert call[0][1].endswith("/dns/records/example.com")
+    assert call[1]["json"] == {
+        "records": [{"type": "A", "name": "@", "address": "1.2.3.4"}]
+    }

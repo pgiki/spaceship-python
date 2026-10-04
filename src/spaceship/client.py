@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from typing import Self
 
     from ._api.contacts import ContactsAPI
+    from ._api.dns import DnsAPI
     from ._api.domains import DomainsAPI
     from ._api.operations import OperationsAPI
 
@@ -105,6 +106,13 @@ class Spaceship:
         from ._api.contacts import ContactsAPI
 
         return ContactsAPI(self)
+
+    @cached_property
+    def dns(self) -> DnsAPI:
+        """DNS record management (domains on Spaceship nameservers)."""
+        from ._api.dns import DnsAPI
+
+        return DnsAPI(self)
 
     def close(self) -> None:
         """Close the underlying HTTP client."""

@@ -154,3 +154,44 @@ class Contact(SpaceshipModel):
         if not data.get("id") and data.get("contactId"):
             data["id"] = data.pop("contactId")
         return cls.model_validate(data)
+
+
+class DNSRecord(SpaceshipModel):
+    """A DNS resource record (API form: ``@`` apex, otherwise relative names)."""
+
+    type: str = ""
+    name: str = "@"
+    address: str | None = None
+    ttl: int | None = None
+    priority: int | None = None
+    port: int | None = None
+    weight: int | None = None
+    service: str | None = None
+    protocol: str | None = None
+    flag: int | None = None
+    tag: str | None = None
+
+    @field_validator("type", mode="before")
+    @classmethod
+    def _upper(cls, v: Any) -> Any:
+        return str(v).upper() if v else v
+
+    def fqdn(self, zone: str) -> str:
+        """Fully qualified name of this record inside ``zone``."""
+        z = zone.strip().rstrip(".").lower()
+        n = (self.name or "").strip().rstrip(".")
+        if not n or n == "@" or n.lower() == z:
+            return z
+        if n.lower().endswith("." + z):
+            return n.lower()
+        return f"{n}.{z}".lower()
+
+    def to_api(self) -> dict[str, Any]:
+        """PUT-item payload (alias names, no empties)."""
+        data: dict[str, Any] = {"type": self.type.upper(), "name": self.name or "@"}
+        for key in ("address", "ttl", "priority", "port", "weight",
+                    "service", "protocol", "flag", "tag"):
+            value = getattr(self, key)
+            if value not in (None, ""):
+                data[key] = value
+        return data

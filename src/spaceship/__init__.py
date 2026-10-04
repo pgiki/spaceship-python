@@ -20,6 +20,7 @@ from .errors import (
 from .models import (
     AsyncOperation,
     Contact,
+    DNSRecord,
     Domain,
     DomainCheck,
     DomainContacts,
@@ -35,6 +36,7 @@ __all__ = [
     "Config",
     "ConfigurationError",
     "Contact",
+    "DNSRecord",
     "Domain",
     "DomainCheck",
     "DomainContacts",
