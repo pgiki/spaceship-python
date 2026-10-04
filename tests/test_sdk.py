@@ -12,6 +12,8 @@ from spaceship import (
     AsyncOperation,
     AsyncOperationError,
     ConfigurationError,
+    Contact,
+    Domain,
     NotSupportedError,
     Spaceship,
     SpaceshipError,
@@ -161,3 +163,194 @@ def test_idn_roundtrip():
     assert from_punycode("example.com") == "example.com"
     assert to_punycode("münchen.de") == "xn--mnchen-3ya.de"
     assert from_punycode("xn--mnchen-3ya.de") == "münchen.de"
+
+
+def _transport(*responses):
+    sp = _client()
+    sp._http = MagicMock()
+    sp._http.request.side_effect = list(responses)
+    return sp
+
+
+def _ok(payload, headers=None):
+    return _response(200, payload, headers)
+
+
+def _accepted(op_id):
+    return _response(202, None, {"spaceship-async-operationid": op_id})
+
+
+def _contact_fields():
+    return {
+        "firstName": "John",
+        "lastName": "Doe",
+        "email": "john@example.com",
+        "address1": "123 Main St",
+        "city": "Austin",
+        "country": "US",
+        "phone": "+1.5125551234",
+    }
+
+
+def test_check_parses_pricing():
+    sp = _transport(
+        _ok(
+            {
+                "domains": [
+                    {"domain": "cool.ai", "result": "available",
+                     "premiumPricing": [{"operation": "register", "price": 69.99, "currency": "USD"}]},
+                    {"domain": "taken.com", "result": "unavailable", "premiumPricing": []},
+                ]
+            }
+        )
+    )
+    rows = sp.domains.check("cool.ai", "taken.com")
+    assert [r.available for r in rows] == [True, False]
+    assert rows[0].premium is True
+    assert str(rows[0].price) == "69.99"
+    assert rows[0].currency == "USD"
+    assert rows[1].price is None
+    body = sp._http.request.call_args[1]["json"]
+    assert body == {"domains": ["cool.ai", "taken.com"]}
+
+
+def test_get_info_parses_full_shape():
+    sp = _transport(
+        _ok(
+            {
+                "name": "example.com",
+                "unicodeName": "example.com",
+                "isPremium": False,
+                "autoRenew": True,
+                "registrationDate": "2024-01-01T00:00:00.000Z",
+                "expirationDate": "2026-01-01T00:00:00.000Z",
+                "lifecycleStatus": "registered",
+                "privacyProtection": {"contactForm": True, "level": "high"},
+                "nameservers": {"provider": "custom", "hosts": ["ns1.x.test"]},
+                "contacts": {"registrant": "C1", "admin": "C1", "tech": "C1", "billing": "C1"},
+            }
+        )
+    )
+    d = sp.domains.get_info("Example.COM")
+    assert isinstance(d, Domain)
+    assert d.name == "example.com"
+    assert d.auto_renew is True
+    assert d.expiration_date is not None
+    assert d.nameservers.hosts == ["ns1.x.test"]
+    assert d.contacts.registrant == "C1"
+
+
+def _register_script(*, nameservers=None):
+    calls = [
+        _ok({"id": "C9"}),  # PUT /contacts (ensure)
+        _accepted("op-1"),  # POST register
+        _ok({"status": "pending", "type": "domains_Create"}),
+        _ok({"status": "success", "type": "domains_Create"}),
+        _ok({"name": "example.com", "expirationDate": "2027-01-01T00:00:00.000Z"}),
+    ]
+    if nameservers:
+        calls.append(_ok({"provider": "custom", "hosts": nameservers}))
+        calls.append(_ok({"name": "example.com"}))
+    return calls
+
+
+def test_register_blocks_and_returns_domain():
+    sp = _transport(*_register_script(nameservers=["ns1.x.test", "ns2.x.test"]))
+    out = sp.domains.register(
+        "example.com", contact=_contact_fields(), years=2,
+        nameservers=["ns1.x.test", "ns2.x.test"], poll_interval=0,
+    )
+    assert isinstance(out, Domain)
+    assert out.name == "example.com"
+    register_call = sp._http.request.call_args_list[1]
+    assert register_call[0][1].endswith("/domains/example.com")
+    body = register_call[1]["json"]
+    assert body["years"] == 2
+    assert body["autoRenew"] is False
+    assert body["contacts"] == {
+        "registrant": "C9", "admin": "C9", "tech": "C9", "billing": "C9",
+    }
+    assert body["privacyProtection"] == {"level": "high", "userConsent": True}
+
+
+def test_register_async_returns_operation():
+    sp = _transport(_ok({"id": "C9"}), _accepted("op-2"), _ok({"status": "pending"}))
+    out = sp.domains.register("example.com", contact=_contact_fields(), wait=False)
+    assert isinstance(out, AsyncOperation)
+    assert out.id == "op-2"
+    assert not out.done
+
+
+def test_renew_fetches_expiry_when_omitted():
+    sp = _transport(
+        _ok({"name": "example.com", "expirationDate": "2026-01-01T00:00:00.000Z"}),
+        _accepted("op-3"),
+        _ok({"status": "success"}),
+        _ok({"name": "example.com", "expirationDate": "2027-01-01T00:00:00.000Z"}),
+    )
+    out = sp.domains.renew("example.com", years=2, poll_interval=0)
+    assert isinstance(out, Domain)
+    renew_call = sp._http.request.call_args_list[1]
+    assert renew_call[0][1].endswith("/domains/example.com/renew")
+    assert renew_call[1]["json"]["currentExpirationDate"].startswith("2026-01-01")
+
+
+def test_transfer_lock_cycle():
+    sp = _transport(
+        _ok({"id": "C9"}),
+        _accepted("op-4"),
+        _ok({"status": "success"}),
+        _ok({"name": "example.com"}),
+        _ok({"isLocked": True}),
+        _ok({"isLocked": False}),
+        _ok({"authCode": "secret123", "expires": "2100-01-01T00:00:00.000Z"}),
+    )
+    out = sp.domains.transfer("example.com", contact=_contact_fields(), auth_code="secret123", poll_interval=0)
+    assert isinstance(out, Domain)
+    transfer_body = sp._http.request.call_args_list[1][1]["json"]
+    assert transfer_body["authCode"] == "secret123"
+    assert sp.domains.lock("example.com") is True
+    assert sp.domains.unlock("example.com") is False
+    assert sp.domains.get_auth_code("example.com") == "secret123"
+
+
+def test_settings_endpoints():
+    sp = _transport(
+        _ok({"isEnabled": True}),
+        _ok({"provider": "basic"}),
+        _ok({"provider": "custom", "hosts": ["ns1.x.test"]}),
+        _ok({"privacyLevel": "high"}),
+    )
+    assert sp.domains.set_autorenew("example.com", True) is True
+    assert sp.domains.set_nameservers("example.com", None)["provider"] == "basic"
+    assert sp.domains.set_nameservers("example.com", ["ns1.x.test"])["provider"] == "custom"
+    assert sp.domains.set_privacy("high", "example.com")["privacyLevel"] == "high"
+
+
+def test_contacts_save_read_ensure():
+    sp = _transport(
+        _ok({"id": "C7"}),
+        _ok({"id": "C7", **_contact_fields()}),
+        _ok({"id": "C8", **_contact_fields()}),
+    )
+    assert sp.contacts.save(_contact_fields()) == "C7"
+    assert sp.contacts.read("C7").first_name == "John"
+    assert sp.contacts.ensure({"id": "C8"}) == "C8"
+    assert sp._http.request.call_count == 3
+
+
+def test_contact_model_api_fields():
+    c = Contact(first_name="J", last_name="D", email="j@d.test", address1="x",
+                city="y", country="US", phone="+1.1")
+    fields = c.api_fields()
+    assert fields["firstName"] == "J"
+    assert "id" not in fields
+    assert Contact.from_api({"contactId": "ZZ", **_contact_fields()}).id == "ZZ"
+
+
+def test_unsupported_endpoints_raise():
+    sp = _client()
+    with pytest.raises(NotSupportedError):
+        sp.domains.get_tld_list()
+    with pytest.raises(NotSupportedError):
+        sp.domains.suggest("example.com")

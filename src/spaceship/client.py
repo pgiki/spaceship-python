@@ -14,6 +14,8 @@ from .logging import set_log_level
 if TYPE_CHECKING:
     from typing import Self
 
+    from ._api.contacts import ContactsAPI
+    from ._api.domains import DomainsAPI
     from ._api.operations import OperationsAPI
 
 
@@ -89,6 +91,20 @@ class Spaceship:
         from ._api.operations import OperationsAPI
 
         return OperationsAPI(self)
+
+    @cached_property
+    def domains(self) -> DomainsAPI:
+        """Domain availability, registration, renewal and transfer."""
+        from ._api.domains import DomainsAPI
+
+        return DomainsAPI(self)
+
+    @cached_property
+    def contacts(self) -> ContactsAPI:
+        """Contact save/read (IDs used by domain operations)."""
+        from ._api.contacts import ContactsAPI
+
+        return ContactsAPI(self)
 
     def close(self) -> None:
         """Close the underlying HTTP client."""

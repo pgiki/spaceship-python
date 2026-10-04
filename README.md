@@ -67,6 +67,6 @@ ruff check src/ tests/
 ## Roadmap
 
 - [x] Core: config, errors, async-operation polling
-- [ ] Domains: availability (with pricing), register/renew/restore/transfer, contacts
+- [x] Domains: availability (with pricing), register/renew/restore/transfer, contacts
 - [ ] DNS: record CRUD over whole-zone save
 - [ ] PyPI 0.1.0 release

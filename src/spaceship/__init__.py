@@ -17,7 +17,16 @@ from .errors import (
     NotSupportedError,
     SpaceshipError,
 )
-from .models import AsyncOperation, DomainPrice
+from .models import (
+    AsyncOperation,
+    Contact,
+    Domain,
+    DomainCheck,
+    DomainContacts,
+    DomainNameservers,
+    DomainPrice,
+    DomainPrivacy,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -25,7 +34,13 @@ __all__ = [
     "AsyncOperationError",
     "Config",
     "ConfigurationError",
+    "Contact",
+    "Domain",
+    "DomainCheck",
+    "DomainContacts",
+    "DomainNameservers",
     "DomainPrice",
+    "DomainPrivacy",
     "NotSupportedError",
     "Spaceship",
     "SpaceshipError",
