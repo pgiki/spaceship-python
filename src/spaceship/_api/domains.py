@@ -26,10 +26,15 @@ class DomainsAPI(BaseAPI):
 
     # -- availability --
     def check(self, *domains: str, include_pricing: bool = True) -> list[DomainCheck]:  # noqa: ARG002
-        """Check availability; pricing is always included by the API.
+        """Check availability; premium pricing included when the API returns it.
 
-        Batches of up to 20 domains per request. Each ``DomainCheck``
-        carries ``.price``/``.currency`` when the domain is available.
+        ``POST /v1/domains/available`` only populates ``premiumPricing`` for
+        premium domains — standard domains come back with an empty list, so
+        ``DomainCheck.price``/``.currency`` are ``None``/``""`` for them even
+        when available. Callers must handle priceless available domains
+        (no register price known) instead of assuming a price is present.
+
+        Batches of up to 20 domains per request.
         """
         names = [to_punycode(d) for d in domains if (d or "").strip()]
         out: list[DomainCheck] = []

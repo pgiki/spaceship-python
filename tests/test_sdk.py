@@ -214,6 +214,26 @@ def test_check_parses_pricing():
     assert body == {"domains": ["cool.ai", "taken.com"]}
 
 
+def test_check_standard_domain_has_no_price():
+    """Availability endpoint omits standard pricing: available domains come
+    back with empty premiumPricing, so price/currency stay empty."""
+    sp = _transport(
+        _ok(
+            {
+                "domains": [
+                    {"domain": "maishaplus.com", "result": "available",
+                     "premiumPricing": []},
+                ]
+            }
+        )
+    )
+    (row,) = sp.domains.check("maishaplus.com")
+    assert row.available is True
+    assert row.premium is False
+    assert row.price is None
+    assert row.currency == ""
+
+
 def test_get_info_parses_full_shape():
     sp = _transport(
         _ok(
