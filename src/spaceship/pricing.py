@@ -38,10 +38,11 @@ Chrome's TLS fingerprint and auto-refreshed cookies.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import time
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -220,6 +221,110 @@ def parse_bff_response(
     return out
 
 
+class PlaywrightBffSession:
+    """One browser + page reused across many BFF POSTs.
+
+    Launching a browser per chunk dominates runtime (Cloudflare settle wait
+    + browser startup), so :meth:`StorefrontPricing.fetch` opens a single
+    session for the whole run. Single-shot users should keep using
+    ``StorefrontPricing._post_playwright``.
+
+    Example:
+        >>> with PlaywrightBffSession(PricingConfig()) as session:
+        ...     payload = session.post({"currencies": ["USD"], ...})
+    """
+
+    def __init__(self, config: PricingConfig) -> None:
+        self.config = config
+        self._stack: Any = None
+        self._page: Any = None
+
+    def __enter__(self) -> PlaywrightBffSession:
+        try:
+            from playwright.sync_api import sync_playwright  # type: ignore
+        except ImportError as exc:
+            raise PricingError(
+                "Playwright fetcher requested but `playwright` is not installed "
+                "(pip install spaceship-python[pricing] && playwright install chromium)."
+            ) from exc
+        try:
+            self._stack = sync_playwright()
+            p = self._stack.__enter__()
+            try:
+                # Real Chrome (not headless-shell): much better fingerprint
+                # against Cloudflare bot management.
+                browser = p.chromium.launch(headless=True, channel="chrome")
+            except Exception:
+                browser = p.chromium.launch(headless=True)
+            context = browser.new_context(user_agent=USER_AGENT, locale="en-US")
+            self._page = context.new_page()
+            self._page.goto(
+                self.config.pricing_page_url,
+                wait_until="domcontentloaded",
+                timeout=int(self.config.timeout * 1000),
+            )
+            # Let Cloudflare challenge / session cookies settle.
+            self._page.wait_for_timeout(8000)
+        except PricingError:
+            self.close()
+            raise
+        except Exception as exc:
+            self.close()
+            raise PricingError(f"Playwright session failed: {exc}") from exc
+        return self
+
+    def post(self, body: dict[str, Any]) -> dict[str, Any]:
+        """POST one BFF body from inside the page and return decoded JSON."""
+        if self._page is None:
+            raise PricingError("Playwright session is not open (use it as a context manager).")
+        # POST from *inside* the page: fetch() uses Chrome's real network
+        # stack (TLS fingerprint + cookies). Playwright's
+        # context.request.post() uses its own HTTP client, which Cloudflare
+        # flags even when cookies are valid.
+        try:
+            result = self._page.evaluate(
+                """async ({url, body, currency}) => {
+                    const r = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'content-type': 'application/json',
+                            'z-currency': currency,
+                        },
+                        body: JSON.stringify(body),
+                    });
+                    return {status: r.status, text: await r.text()};
+                }""",
+                {
+                    "url": self.config.bff_url,
+                    "body": body,
+                    "currency": self.config.currency.upper(),
+                },
+            )
+        except Exception as exc:
+            raise PricingError(f"Playwright fetch failed: {exc}") from exc
+        status = (result or {}).get("status")
+        if status != 200:
+            raise PricingError(f"Spaceship BFF via Playwright HTTP {status}.")
+        try:
+            payload = json.loads((result or {}).get("text") or "")
+        except Exception as exc:
+            raise PricingError(f"Spaceship BFF via Playwright invalid JSON: {exc}") from exc
+        if not isinstance(payload, dict):
+            raise PricingError("Spaceship BFF returned non-object JSON.")
+        return payload
+
+    def close(self) -> None:
+        """Close the browser (also called by ``__exit__``)."""
+        stack, self._stack = self._stack, None
+        self._page = None
+        if stack is not None:
+            with contextlib.suppress(Exception):
+                stack.__exit__(None, None, None)
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
+
+
 class StorefrontPricing:
     """Bulk TLD prices from the Spaceship storefront pricing BFF (keyless).
 
@@ -311,72 +416,9 @@ class StorefrontPricing:
         return payload
 
     def _post_playwright(self, body: dict[str, Any]) -> dict[str, Any]:
-        """POST from a Playwright context (auto-handles Cloudflare cookies)."""
-        try:
-            from playwright.sync_api import sync_playwright  # type: ignore
-        except ImportError as exc:
-            raise PricingError(
-                "Playwright fetcher requested but `playwright` is not installed "
-                "(pip install spaceship-python[pricing] && playwright install chromium)."
-            ) from exc
-        try:
-            with sync_playwright() as p:
-                try:
-                    # Real Chrome (not headless-shell): much better fingerprint
-                    # against Cloudflare bot management.
-                    browser = p.chromium.launch(headless=True, channel="chrome")
-                except Exception:
-                    browser = p.chromium.launch(headless=True)
-                try:
-                    context = browser.new_context(user_agent=USER_AGENT, locale="en-US")
-                    page = context.new_page()
-                    page.goto(
-                        self.config.pricing_page_url,
-                        wait_until="domcontentloaded",
-                        timeout=int(self.config.timeout * 1000),
-                    )
-                    # Let Cloudflare challenge / session cookies settle.
-                    page.wait_for_timeout(8000)
-                    # POST from *inside* the page: fetch() uses Chrome's real
-                    # network stack (TLS fingerprint + cookies). Playwright's
-                    # context.request.post() uses its own HTTP client, which
-                    # Cloudflare flags even when cookies are valid.
-                    result = page.evaluate(
-                        """async ({url, body, currency}) => {
-                            const r = await fetch(url, {
-                                method: 'POST',
-                                headers: {
-                                    'content-type': 'application/json',
-                                    'z-currency': currency,
-                                },
-                                body: JSON.stringify(body),
-                            });
-                            return {status: r.status, text: await r.text()};
-                        }""",
-                        {
-                            "url": self.config.bff_url,
-                            "body": body,
-                            "currency": self.config.currency.upper(),
-                        },
-                    )
-                    status = (result or {}).get("status")
-                    if status != 200:
-                        raise PricingError(f"Spaceship BFF via Playwright HTTP {status}.")
-                    try:
-                        payload = json.loads((result or {}).get("text") or "")
-                    except Exception as exc:
-                        raise PricingError(
-                            f"Spaceship BFF via Playwright invalid JSON: {exc}"
-                        ) from exc
-                finally:
-                    browser.close()
-        except PricingError:
-            raise
-        except Exception as exc:
-            raise PricingError(f"Playwright fetch failed: {exc}") from exc
-        if not isinstance(payload, dict):
-            raise PricingError("Spaceship BFF returned non-object JSON.")
-        return payload
+        """Single-shot POST (opens and closes its own browser session)."""
+        with PlaywrightBffSession(self.config) as session:
+            return session.post(body)
 
     def _post_scraping_api(self, body: dict[str, Any]) -> dict[str, Any]:
         """Forward the BFF POST through a configured scraping proxy.
@@ -457,9 +499,24 @@ class StorefrontPricing:
         """Fetch register/renew (+transfer) prices; ``None`` for unavailable legs.
 
         Raises :class:`PricingError` when no chunk succeeds at all; per-TLD
-        gaps are skipped (never fatal).
+        gaps are skipped (never fatal). The Playwright fetcher opens a
+        single browser session for the whole run instead of one per chunk.
         """
         slugs = self.resolve_slugs(tlds)
+        if (fetcher or self.config.fetcher).lower() == "playwright":
+            with PlaywrightBffSession(self.config) as session:
+                return self._fetch_with(session.post, slugs, include_transfer)
+        return self._fetch_with(
+            lambda body: self._post(body, fetcher), slugs, include_transfer
+        )
+
+    def _fetch_with(
+        self,
+        post: Callable[[dict[str, Any]], dict[str, Any]],
+        slugs: list[str],
+        include_transfer: bool,
+    ) -> list[TldPrice]:
+        """Run the chunked two-pass fetch over a ``body -> payload`` callable."""
         currency = self.config.currency.upper()
         merged: dict[str, dict[str, Decimal]] = {s: {} for s in slugs}
         ok_chunks = 0
@@ -467,7 +524,7 @@ class StorefrontPricing:
         for chunk in self._chunks(slugs, self.config.batch_size):
             # Pass A: register + renew.
             try:
-                payload_a = self._post(self._build_body(chunk, transfer=0), fetcher)
+                payload_a = post(self._build_body(chunk, transfer=0))
                 for slug, vals in parse_bff_response(
                     payload_a, transfer_mode=False, currency=currency
                 ).items():
@@ -480,7 +537,7 @@ class StorefrontPricing:
             # Pass B: transfer leg.
             if include_transfer:
                 try:
-                    payload_b = self._post(self._build_body(chunk, transfer=1), fetcher)
+                    payload_b = post(self._build_body(chunk, transfer=1))
                     for slug, vals in parse_bff_response(
                         payload_b, transfer_mode=True, currency=currency
                     ).items():

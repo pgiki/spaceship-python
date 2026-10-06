@@ -31,6 +31,7 @@ from .models import (
     TldPrice,
 )
 from .pricing import (
+    PlaywrightBffSession,
     PricingConfig,
     StorefrontPricing,
     parse_bff_response,
@@ -38,7 +39,7 @@ from .pricing import (
     tld_to_slug,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __all__ = [
     "AsyncOperation",
     "AsyncOperationError",
@@ -53,6 +54,7 @@ __all__ = [
     "DomainPrice",
     "DomainPrivacy",
     "NotSupportedError",
+    "PlaywrightBffSession",
     "PricingConfig",
     "PricingError",
     "Spaceship",

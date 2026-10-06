@@ -40,7 +40,9 @@ for quote in pricing.fetch(["com", "org", "ai"]):
 
 `StorefrontPricing(PricingConfig(...))` accepts `currency`, `batch_size`,
 `fetcher="direct"` (plain HTTP, works while Cloudflare cookies are fresh) and
-`fetcher="scraping_api"` (via your scraping proxy). See `examples/pricing.py`.
+`fetcher="scraping_api"` (via your scraping proxy). The Playwright fetcher
+opens one browser session per `fetch()` call and reuses it across all chunks.
+See `examples/pricing.py`.
 
 ## Examples
 

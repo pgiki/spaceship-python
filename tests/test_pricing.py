@@ -155,6 +155,52 @@ def test_fetch_empty_scope_raises():
         _pricing().fetch([])
 
 
+PRICE_TABLE = {
+    "com": ("9.68", "10.18"),
+    "org": ("11.29", "11.59"),
+    "si": (None, "11.98"),
+}
+
+
+def _fake_session_post(body):
+    """Build a BFF payload for the requested slugs (purchase doubles as transfer leg)."""
+    products = []
+    for item in body["products"]:
+        slug = item["product"]["productSlug"]
+        reg, ren = PRICE_TABLE[slug]
+        products.append(
+            {
+                "product": {"productSlug": slug},
+                "prices": [
+                    _price("purchase", reg if reg else "0.00"),
+                    _price("renewal", ren),
+                ],
+            }
+        )
+    return {"products": products}
+
+
+def test_fetch_reuses_single_playwright_session():
+    with patch("spaceship.pricing.PlaywrightBffSession") as mock_session_cls:
+        session = mock_session_cls.return_value.__enter__.return_value
+        session.post.side_effect = _fake_session_post
+        prices = _pricing(batch_size=1, fetcher="playwright").fetch(["com", "org", "si"])
+    # One browser for the whole run, not one per chunk: 3 slugs x 2 passes.
+    assert mock_session_cls.call_count == 1
+    assert session.post.call_count == 6
+    by_tld = {p.tld: p for p in prices}
+    assert by_tld["com"].transfer == Decimal("9.68")
+    assert by_tld["si"].register is None
+    assert by_tld["si"].renew == Decimal("11.98")
+
+
+def test_fetch_playwright_session_failure_raises():
+    with patch("spaceship.pricing.PlaywrightBffSession") as mock_session_cls:
+        mock_session_cls.return_value.__enter__.side_effect = PricingError("no browser")
+        with pytest.raises(PricingError, match="no browser"):
+            _pricing(batch_size=1, fetcher="playwright").fetch(["com"])
+
+
 def test_config_from_env_defaults():
     cfg = PricingConfig.from_env()
     assert cfg.currency == "USD"
