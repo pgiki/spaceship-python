@@ -18,6 +18,48 @@ pip install spaceship-python
 
 Requires Python ≥ 3.12. Dependencies: `httpx`, `pydantic`, `python-dotenv`.
 
+For storefront pricing (Cloudflare-aware fetcher):
+
+```bash
+pip install "spaceship-python[pricing]"
+playwright install chromium
+```
+
+## Storefront pricing (no API key)
+
+The public API has no bulk TLD pricing endpoint, so the SDK can quote the
+storefront pricing BFF instead (register/renew/transfer per TLD):
+
+```python
+from spaceship import StorefrontPricing
+
+pricing = StorefrontPricing()  # fetcher="playwright" by default
+for quote in pricing.fetch(["com", "org", "ai"]):
+    print(quote.tld, quote.register, quote.renew, quote.transfer)
+```
+
+`StorefrontPricing(PricingConfig(...))` accepts `currency`, `batch_size`,
+`fetcher="direct"` (plain HTTP, works while Cloudflare cookies are fresh) and
+`fetcher="scraping_api"` (via your scraping proxy). See `examples/pricing.py`.
+
+## Examples
+
+Runnable end-to-end scripts in `examples/` (run from the repo root, e.g.
+`python examples/portfolio.py`). ⚠️ marks scripts that can spend money or
+mutate live state — those require explicit confirmation:
+
+| Script | What it shows |
+|---|---|
+| `quickstart.py` | Availability check (free). |
+| `check_availability.py` | Bulk checks, premium vs standard pricing, IDN. |
+| `portfolio.py` | Paginated portfolio audit with expiry flags (read-only). |
+| `domain_lifecycle.py` ⚠️ | `register/renew/transfer-in/restore` (charged) + `info`/`settings`; `--no-wait` async pattern. |
+| `contacts.py` | Contact create/read/ensure/attributes. |
+| `dns_manage.py` ⚠️ | Zone list/add/set-a/delete; dry-run by default, `--apply` + YES to write. |
+| `pricing.py` | Minimal bulk TLD quotes (no API key). |
+| `pricing_report.py` | Fetcher variants, cheapest-TLD ranking, CSV/Markdown export. |
+| `error_handling.py` | Error shapes, unsupported endpoints, rate limits (offline). |
+
 ## Authentication
 
 Generate an API key + secret in [API Manager](https://www.spaceship.com/application/api-manager/),

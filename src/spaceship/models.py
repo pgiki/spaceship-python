@@ -88,6 +88,27 @@ class DomainPrivacy(SpaceshipModel):
     level: str = ""
 
 
+class TldPrice(SpaceshipModel):
+    """A storefront pricing-BFF quote for one TLD (``period=P1Y``)."""
+
+    tld: str = ""
+    register: Decimal | None = None
+    renew: Decimal | None = None
+    transfer: Decimal | None = None
+    currency: str = "USD"
+
+    @field_validator("register", "renew", "transfer", mode="before")
+    @classmethod
+    def _parse_amount(cls, v: Any) -> Decimal | None:
+        if v is None or v == "":
+            return None
+        try:
+            value = Decimal(str(v))
+        except Exception:
+            return None
+        return value if value > 0 else None
+
+
 class DomainNameservers(SpaceshipModel):
     provider: str = ""
     hosts: list[str] = Field(default_factory=list)

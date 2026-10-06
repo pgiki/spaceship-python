@@ -15,6 +15,7 @@ from .errors import (
     AsyncOperationError,
     ConfigurationError,
     NotSupportedError,
+    PricingError,
     SpaceshipError,
 )
 from .models import (
@@ -27,9 +28,17 @@ from .models import (
     DomainNameservers,
     DomainPrice,
     DomainPrivacy,
+    TldPrice,
+)
+from .pricing import (
+    PricingConfig,
+    StorefrontPricing,
+    parse_bff_response,
+    slug_to_tld,
+    tld_to_slug,
 )
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __all__ = [
     "AsyncOperation",
     "AsyncOperationError",
@@ -44,6 +53,13 @@ __all__ = [
     "DomainPrice",
     "DomainPrivacy",
     "NotSupportedError",
+    "PricingConfig",
+    "PricingError",
     "Spaceship",
     "SpaceshipError",
+    "StorefrontPricing",
+    "TldPrice",
+    "parse_bff_response",
+    "slug_to_tld",
+    "tld_to_slug",
 ]

@@ -73,3 +73,10 @@ class AsyncOperationError(SpaceshipError):
             "async_operation_failed",
             details,
         )
+
+
+class PricingError(SpaceshipError):
+    """A storefront pricing-BFF fetch failed (transport, block, or payload)."""
+
+    def __init__(self, message: str, details: Any | None = None) -> None:
+        super().__init__(message, 0, "pricing_fetch_failed", details)
