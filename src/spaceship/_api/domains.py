@@ -8,6 +8,7 @@ from ..errors import NotSupportedError
 from ..idn import to_punycode
 from ..models import AsyncOperation, Contact, Domain, DomainCheck
 from .base import BaseAPI
+from .contacts import ContactsAPI
 
 #: Batch size for POST /v1/domains/available (API allows 1..20).
 CHECK_BATCH_SIZE = 20
@@ -39,9 +40,7 @@ class DomainsAPI(BaseAPI):
         names = [to_punycode(d) for d in domains if (d or "").strip()]
         out: list[DomainCheck] = []
         for i in range(0, len(names), CHECK_BATCH_SIZE):
-            data = self._request(
-                "POST", "/domains/available", json={"domains": names[i : i + CHECK_BATCH_SIZE]}
-            )
+            data = self._request("POST", "/domains/available", json={"domains": names[i : i + CHECK_BATCH_SIZE]})
             rows = (data or {}).get("domains", []) if isinstance(data, dict) else []
             out.extend(DomainCheck.model_validate(r) for r in rows if isinstance(r, dict))
         return out
@@ -55,9 +54,7 @@ class DomainsAPI(BaseAPI):
     def list(self, *, page: int = 1, page_size: int = 20) -> list[Domain]:
         """List domains in the account (``take``/``skip`` pagination)."""
         size = max(1, min(int(page_size), 100))
-        data = self._request(
-            "GET", "/domains", params={"take": size, "skip": (max(page, 1) - 1) * size}
-        )
+        data = self._request("GET", "/domains", params={"take": size, "skip": (max(page, 1) - 1) * size})
         rows = (data or {}).get("items", []) if isinstance(data, dict) else []
         return [Domain.model_validate(r) for r in rows if isinstance(r, dict)]
 
@@ -75,11 +72,7 @@ class DomainsAPI(BaseAPI):
         A ``Contact`` (or field dict) is saved once and mirrored into all
         four roles; a dict that already holds role ids is used as-is.
         """
-        from .contacts import ContactsAPI
-
-        if isinstance(contact, dict) and any(
-            contact.get(role) for role in ("registrant", "admin", "tech", "billing")
-        ):
+        if isinstance(contact, dict) and any(contact.get(role) for role in ("registrant", "admin", "tech", "billing")):
             out = {role: str(contact.get(role) or "") for role in ("registrant", "admin", "tech", "billing")}
             if contact.get("attributes"):
                 out["attributes"] = contact["attributes"]
@@ -147,9 +140,7 @@ class DomainsAPI(BaseAPI):
         name = to_punycode(domain)
         if current_expiration_date is None:
             info = self.get_info(name)
-            current_expiration_date = (
-                info.expiration_date.isoformat() if info.expiration_date else ""
-            )
+            current_expiration_date = info.expiration_date.isoformat() if info.expiration_date else ""
         response = self._request_raw(
             "POST",
             f"/domains/{name}/renew",
@@ -161,8 +152,7 @@ class DomainsAPI(BaseAPI):
         self._client.operations.wait_for(op_id, timeout=timeout, poll_interval=poll_interval)
         return self.get_info(name)
 
-    def restore(self, domain: str, *, wait: bool = True, timeout: float = 300.0,
-                poll_interval: float = 5.0) -> Any:
+    def restore(self, domain: str, *, wait: bool = True, timeout: float = 300.0, poll_interval: float = 5.0) -> Any:
         """Request domain restoration (redemption)."""
         name = to_punycode(domain)
         response = self._request_raw("POST", f"/domains/{name}/restore")
@@ -214,9 +204,7 @@ class DomainsAPI(BaseAPI):
 
     def set_lock(self, domain: str, locked: bool) -> bool:
         """Set the transfer lock; returns the resulting state."""
-        data = self._request(
-            "PUT", f"/domains/{to_punycode(domain)}/transfer/lock", json={"isLocked": bool(locked)}
-        )
+        data = self._request("PUT", f"/domains/{to_punycode(domain)}/transfer/lock", json={"isLocked": bool(locked)})
         payload = data if isinstance(data, dict) else {}
         return bool(payload.get("isLocked", locked))
 
@@ -231,9 +219,7 @@ class DomainsAPI(BaseAPI):
     # -- settings --
     def set_autorenew(self, domain: str, enabled: bool) -> bool:
         """Set the autorenewal state; returns the resulting state."""
-        data = self._request(
-            "PUT", f"/domains/{to_punycode(domain)}/autorenew", json={"isEnabled": bool(enabled)}
-        )
+        data = self._request("PUT", f"/domains/{to_punycode(domain)}/autorenew", json={"isEnabled": bool(enabled)})
         payload = data if isinstance(data, dict) else {}
         return bool(payload.get("isEnabled", enabled))
 
@@ -248,9 +234,7 @@ class DomainsAPI(BaseAPI):
     def set_nameservers(self, domain: str, hosts: list[str] | None) -> Any:
         """Point a domain at custom nameservers (or back to ``basic``)."""
         if not hosts:
-            return self._request(
-                "PUT", f"/domains/{to_punycode(domain)}/nameservers", json={"provider": "basic"}
-            )
+            return self._request("PUT", f"/domains/{to_punycode(domain)}/nameservers", json={"provider": "basic"})
         return self._request(
             "PUT",
             f"/domains/{to_punycode(domain)}/nameservers",

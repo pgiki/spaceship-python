@@ -54,7 +54,8 @@ class DnsAPI(BaseAPI):
         """Replace the whole zone (204 on success)."""
         items = [r.to_api() if isinstance(r, DNSRecord) else dict(r) for r in records]
         self._request(
-            "PUT", f"/dns/records/{zone.strip().rstrip('.')}",
+            "PUT",
+            f"/dns/records/{zone.strip().rstrip('.')}",
             json={"force": bool(force), "items": items},
         )
 
@@ -158,10 +159,7 @@ class DnsAPI(BaseAPI):
             names.add(self._short_name(f"www.{domain.rstrip('.')}", zone))
         if include_wildcard:
             names.add(self._short_name(f"*.{domain.rstrip('.')}", zone))
-        rows = [
-            r for r in self.list(zone)
-            if not (r.type.upper() == "A" and r.name.lower() in names)
-        ]
+        rows = [r for r in self.list(zone) if not (r.type.upper() == "A" and r.name.lower() in names)]
         for short in sorted(names):
             rows.append(DNSRecord(type="A", name=short, address=ip, ttl=ttl))
         self.set(zone, rows)

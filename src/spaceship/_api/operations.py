@@ -40,8 +40,5 @@ class OperationsAPI(BaseAPI):
             if last.status == "failed":
                 raise AsyncOperationError(operation_id, last.details)
             if time.monotonic() >= deadline:
-                raise TimeoutError(
-                    f"Async operation {operation_id} did not finish "
-                    f"within {timeout:.0f}s."
-                )
+                raise TimeoutError(f"Async operation {operation_id} did not finish within {timeout:.0f}s.")
             time.sleep(max(poll_interval, 0))

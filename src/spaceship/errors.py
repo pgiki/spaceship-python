@@ -33,12 +33,7 @@ class SpaceshipError(Exception):
     def from_response(cls, status_code: int, data: Any) -> SpaceshipError:
         """Build an error from a JSON body (``application/problem+json`` or plain)."""
         if isinstance(data, dict):
-            message = (
-                data.get("detail")
-                or data.get("message")
-                or data.get("title")
-                or f"HTTP {status_code}"
-            )
+            message = data.get("detail") or data.get("message") or data.get("title") or f"HTTP {status_code}"
             code = data.get("code") or data.get("type")
             return cls(str(message), status_code, code, data)
         return cls(str(data) if data else f"HTTP {status_code}", status_code, None, data)

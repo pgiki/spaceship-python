@@ -210,8 +210,7 @@ class DNSRecord(SpaceshipModel):
     def to_api(self) -> dict[str, Any]:
         """PUT-item payload (alias names, no empties)."""
         data: dict[str, Any] = {"type": self.type.upper(), "name": self.name or "@"}
-        for key in ("address", "ttl", "priority", "port", "weight",
-                    "service", "protocol", "flag", "tag"):
+        for key in ("address", "ttl", "priority", "port", "weight", "service", "protocol", "flag", "tag"):
             value = getattr(self, key)
             if value not in (None, ""):
                 data[key] = value

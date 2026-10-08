@@ -25,7 +25,7 @@ def require_client() -> Spaceship:
 
 def confirm(action: str) -> bool:
     """Ask the user to type YES before a charging/mutating operation."""
-    answer = input(f'Type YES to {action}: ').strip()
+    answer = input(f"Type YES to {action}: ").strip()
     return answer == "YES"
 
 

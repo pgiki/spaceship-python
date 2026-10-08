@@ -58,9 +58,9 @@ def cmd_set_a(sp, args: argparse.Namespace) -> int:
         return 0
     if not confirm(f"point {args.zone} at {args.ip}"):
         return 2
-    records = sp.dns.set_a_records(args.zone, args.zone, args.ip,
-                                   include_www=not args.no_www,
-                                   include_wildcard=args.wildcard, ttl=args.ttl)
+    records = sp.dns.set_a_records(
+        args.zone, args.zone, args.ip, include_www=not args.no_www, include_wildcard=args.wildcard, ttl=args.ttl
+    )
     _show(records, args.zone)
     return 0
 
@@ -68,7 +68,8 @@ def cmd_set_a(sp, args: argparse.Namespace) -> int:
 def cmd_delete(sp, args: argparse.Namespace) -> int:
     current = sp.dns.list(args.zone)
     doomed = [
-        r for r in current
+        r
+        for r in current
         if (args.name is None or r.name.lower() == args.name.lower().lstrip("."))
         and (args.type is None or r.type.upper() == args.type.upper())
         and (args.value is None or (r.address or "") == args.value)

@@ -81,9 +81,7 @@ def test_auth_headers():
 def test_error_from_problem_json():
     sp = _client()
     sp._http = MagicMock()
-    sp._http.request.return_value = _response(
-        400, {"detail": "Bad domain", "code": "E1"}
-    )
+    sp._http.request.return_value = _response(400, {"detail": "Bad domain", "code": "E1"})
     from spaceship._api.base import BaseAPI
 
     with pytest.raises(SpaceshipError) as exc_info:
@@ -116,9 +114,7 @@ def test_not_supported_error_hint():
 def test_operations_get_parses():
     sp = _client()
     sp._http = MagicMock()
-    sp._http.request.return_value = _response(
-        200, {"status": "success", "type": "domains_Create", "details": {"a": 1}}
-    )
+    sp._http.request.return_value = _response(200, {"status": "success", "type": "domains_Create", "details": {"a": 1}})
     op = sp.operations.get("abc123")
     assert isinstance(op, AsyncOperation)
     assert op.id == "abc123"
@@ -141,9 +137,7 @@ def test_operations_wait_success_after_pending():
 def test_operations_wait_failed_raises():
     sp = _client()
     sp._http = MagicMock()
-    sp._http.request.return_value = _response(
-        200, {"status": "failed", "details": {"reason": "taken"}}
-    )
+    sp._http.request.return_value = _response(200, {"status": "failed", "details": {"reason": "taken"}})
     with pytest.raises(AsyncOperationError) as exc_info:
         sp.operations.wait_for("op9", timeout=30, poll_interval=0)
     assert exc_info.value.operation_id == "op9"
@@ -197,8 +191,11 @@ def test_check_parses_pricing():
         _ok(
             {
                 "domains": [
-                    {"domain": "cool.ai", "result": "available",
-                     "premiumPricing": [{"operation": "register", "price": 69.99, "currency": "USD"}]},
+                    {
+                        "domain": "cool.ai",
+                        "result": "available",
+                        "premiumPricing": [{"operation": "register", "price": 69.99, "currency": "USD"}],
+                    },
                     {"domain": "taken.com", "result": "unavailable", "premiumPricing": []},
                 ]
             }
@@ -221,8 +218,7 @@ def test_check_standard_domain_has_no_price():
         _ok(
             {
                 "domains": [
-                    {"domain": "maishaplus.com", "result": "available",
-                     "premiumPricing": []},
+                    {"domain": "maishaplus.com", "result": "available", "premiumPricing": []},
                 ]
             }
         )
@@ -277,8 +273,11 @@ def _register_script(*, nameservers=None):
 def test_register_blocks_and_returns_domain():
     sp = _transport(*_register_script(nameservers=["ns1.x.test", "ns2.x.test"]))
     out = sp.domains.register(
-        "example.com", contact=_contact_fields(), years=2,
-        nameservers=["ns1.x.test", "ns2.x.test"], poll_interval=0,
+        "example.com",
+        contact=_contact_fields(),
+        years=2,
+        nameservers=["ns1.x.test", "ns2.x.test"],
+        poll_interval=0,
     )
     assert isinstance(out, Domain)
     assert out.name == "example.com"
@@ -288,7 +287,10 @@ def test_register_blocks_and_returns_domain():
     assert body["years"] == 2
     assert body["autoRenew"] is False
     assert body["contacts"] == {
-        "registrant": "C9", "admin": "C9", "tech": "C9", "billing": "C9",
+        "registrant": "C9",
+        "admin": "C9",
+        "tech": "C9",
+        "billing": "C9",
     }
     assert body["privacyProtection"] == {"level": "high", "userConsent": True}
 
@@ -360,8 +362,7 @@ def test_contacts_save_read_ensure():
 
 
 def test_contact_model_api_fields():
-    c = Contact(first_name="J", last_name="D", email="j@d.test", address1="x",
-                city="y", country="US", phone="+1.1")
+    c = Contact(first_name="J", last_name="D", email="j@d.test", address1="x", city="y", country="US", phone="+1.1")
     fields = c.api_fields()
     assert fields["firstName"] == "J"
     assert "id" not in fields
@@ -444,6 +445,4 @@ def test_dns_delete_exact():
     sp.dns.delete_exact("example.com", [{"type": "A", "name": "@", "address": "1.2.3.4"}])
     call = sp._http.request.call_args
     assert call[0][1].endswith("/dns/records/example.com")
-    assert call[1]["json"] == {
-        "records": [{"type": "A", "name": "@", "address": "1.2.3.4"}]
-    }
+    assert call[1]["json"] == {"records": [{"type": "A", "name": "@", "address": "1.2.3.4"}]}

@@ -241,7 +241,7 @@ class PlaywrightBffSession:
 
     def __enter__(self) -> PlaywrightBffSession:
         try:
-            from playwright.sync_api import sync_playwright  # type: ignore
+            from playwright.sync_api import sync_playwright  # type: ignore  # noqa: PLC0415  # optional pricing extra
         except ImportError as exc:
             raise PricingError(
                 "Playwright fetcher requested but `playwright` is not installed "
@@ -402,8 +402,7 @@ class StorefrontPricing:
         text = (r.text or "")[:200]
         if r.status_code in (401, 403):
             raise PricingError(
-                "Spaceship BFF blocked "
-                f"(HTTP {r.status_code}; Cloudflare/cookies need refresh): {text}."
+                f"Spaceship BFF blocked (HTTP {r.status_code}; Cloudflare/cookies need refresh): {text}."
             )
         if r.status_code != 200:
             raise PricingError(f"Spaceship BFF HTTP {r.status_code}: {text}.")
@@ -428,9 +427,7 @@ class StorefrontPricing:
         JSON back (either raw or wrapped in ``{"result": ...}``).
         """
         if not self.config.scrape_api_url or not self.config.scrape_api_key:
-            raise PricingError(
-                "Scraping-API fetcher requested but scrape_api_url/key are not configured."
-            )
+            raise PricingError("Scraping-API fetcher requested but scrape_api_url/key are not configured.")
         try:
             r = httpx.post(
                 self.config.scrape_api_url,
@@ -506,9 +503,7 @@ class StorefrontPricing:
         if (fetcher or self.config.fetcher).lower() == "playwright":
             with PlaywrightBffSession(self.config) as session:
                 return self._fetch_with(session.post, slugs, include_transfer)
-        return self._fetch_with(
-            lambda body: self._post(body, fetcher), slugs, include_transfer
-        )
+        return self._fetch_with(lambda body: self._post(body, fetcher), slugs, include_transfer)
 
     def _fetch_with(
         self,
@@ -525,9 +520,7 @@ class StorefrontPricing:
             # Pass A: register + renew.
             try:
                 payload_a = post(self._build_body(chunk, transfer=0))
-                for slug, vals in parse_bff_response(
-                    payload_a, transfer_mode=False, currency=currency
-                ).items():
+                for slug, vals in parse_bff_response(payload_a, transfer_mode=False, currency=currency).items():
                     merged.setdefault(slug, {}).update(vals)
                 ok_chunks += 1
             except PricingError as exc:
@@ -538,9 +531,7 @@ class StorefrontPricing:
             if include_transfer:
                 try:
                     payload_b = post(self._build_body(chunk, transfer=1))
-                    for slug, vals in parse_bff_response(
-                        payload_b, transfer_mode=True, currency=currency
-                    ).items():
+                    for slug, vals in parse_bff_response(payload_b, transfer_mode=True, currency=currency).items():
                         if vals.get("transfer") is not None:
                             merged.setdefault(slug, {})["transfer"] = vals["transfer"]
                 except PricingError as exc:

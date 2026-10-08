@@ -62,7 +62,10 @@ class BaseAPI:
         """Send a request and return the decoded JSON body (2xx only)."""
         try:
             response = self._http.request(
-                method, self._url(path), params=params, json=json,
+                method,
+                self._url(path),
+                params=params,
+                json=json,
                 headers=self._headers({"Content-Type": "application/json"} if json is not None else None),
             )
         except SpaceshipError:
@@ -91,7 +94,10 @@ class BaseAPI:
         """Send a request and return the raw response (for 202 header capture)."""
         try:
             response = self._http.request(
-                method, self._url(path), params=params, json=json,
+                method,
+                self._url(path),
+                params=params,
+                json=json,
                 headers=self._headers({"Content-Type": "application/json"} if json is not None else None),
             )
         except Exception as e:
@@ -103,8 +109,7 @@ class BaseAPI:
         op_id = response.headers.get(ASYNC_OPERATION_HEADER, "")
         if not op_id:
             raise SpaceshipError(
-                "Expected 202 async operation response without "
-                f"'{ASYNC_OPERATION_HEADER}' header.",
+                f"Expected 202 async operation response without '{ASYNC_OPERATION_HEADER}' header.",
                 response.status_code,
             )
         return op_id

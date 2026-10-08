@@ -5,7 +5,8 @@ so create yours once and reuse them. `ensure()` verifies an existing ID or
 saves new details when given none.
 
 Usage:
-    python examples/contacts.py create --email you@example.com --first Ada --last Lovelace --city Dar --country TZ --phone +255700000000
+    python examples/contacts.py create --email you@example.com --first Ada --last Lovelace \
+        --city Dar --country TZ --phone +255700000000
     python examples/contacts.py read CONTACT_ID
     python examples/contacts.py ensure --contact-id CONTACT_ID
     python examples/contacts.py attrs CONTACT_ID --attr taxNumber=123 --attr legalType=individual

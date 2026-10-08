@@ -77,8 +77,12 @@ def cmd_register(sp, args: argparse.Namespace) -> int:
     return _report(
         sp.domains.register(
             args.domain,
-            contact={"registrant": args.contact_id, "admin": args.contact_id,
-                      "tech": args.contact_id, "billing": args.contact_id},
+            contact={
+                "registrant": args.contact_id,
+                "admin": args.contact_id,
+                "tech": args.contact_id,
+                "billing": args.contact_id,
+            },
             years=args.years,
             auto_renew=args.auto_renew,
             wait=not args.no_wait,
@@ -101,8 +105,12 @@ def cmd_transfer(sp, args: argparse.Namespace) -> int:
     return _report(
         sp.domains.transfer(
             args.domain,
-            contact={"registrant": args.contact_id, "admin": args.contact_id,
-                      "tech": args.contact_id, "billing": args.contact_id},
+            contact={
+                "registrant": args.contact_id,
+                "admin": args.contact_id,
+                "tech": args.contact_id,
+                "billing": args.contact_id,
+            },
             auth_code=args.auth_code,
             wait=not args.no_wait,
         ),

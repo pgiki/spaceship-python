@@ -15,8 +15,7 @@ def main() -> None:
     pricing = StorefrontPricing.from_env(fetcher=fetcher)
     for quote in pricing.fetch(["com", "org", "ai"]):
         print(
-            f".{quote.tld}: register {quote.register} "
-            f"renew {quote.renew} transfer {quote.transfer} ({quote.currency})"
+            f".{quote.tld}: register {quote.register} renew {quote.renew} transfer {quote.transfer} ({quote.currency})"
         )
 
 

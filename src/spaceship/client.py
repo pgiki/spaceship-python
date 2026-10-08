@@ -3,21 +3,18 @@
 from __future__ import annotations
 
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import Self
 
 import httpx
+from dotenv import load_dotenv
 
+from ._api.contacts import ContactsAPI
+from ._api.dns import DnsAPI
+from ._api.domains import DomainsAPI
+from ._api.operations import OperationsAPI
 from .config import Config
 from .errors import ConfigurationError
 from .logging import set_log_level
-
-if TYPE_CHECKING:
-    from typing import Self
-
-    from ._api.contacts import ContactsAPI
-    from ._api.dns import DnsAPI
-    from ._api.domains import DomainsAPI
-    from ._api.operations import OperationsAPI
 
 
 class Spaceship:
@@ -81,37 +78,27 @@ class Spaceship:
     @classmethod
     def from_env_file(cls, path: str = ".env") -> Self:
         """Create a client from a specific env file."""
-        from dotenv import load_dotenv
-
         load_dotenv(path)
         return cls()
 
     @cached_property
     def operations(self) -> OperationsAPI:
         """Async operation tracking."""
-        from ._api.operations import OperationsAPI
-
         return OperationsAPI(self)
 
     @cached_property
     def domains(self) -> DomainsAPI:
         """Domain availability, registration, renewal and transfer."""
-        from ._api.domains import DomainsAPI
-
         return DomainsAPI(self)
 
     @cached_property
     def contacts(self) -> ContactsAPI:
         """Contact save/read (IDs used by domain operations)."""
-        from ._api.contacts import ContactsAPI
-
         return ContactsAPI(self)
 
     @cached_property
     def dns(self) -> DnsAPI:
         """DNS record management (domains on Spaceship nameservers)."""
-        from ._api.dns import DnsAPI
-
         return DnsAPI(self)
 
     def close(self) -> None:
