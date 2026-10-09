@@ -349,6 +349,15 @@ def test_settings_endpoints():
     assert sp.domains.set_privacy("high", "example.com")["privacyLevel"] == "high"
 
 
+def test_get_nameservers_from_info():
+    sp = _transport(
+        _ok({"name": "example.com", "nameservers": {"provider": "custom", "hosts": ["ns1.x.test", "ns2.x.test"]}}),
+        _ok({"name": "example.org", "nameservers": {"provider": "basic", "hosts": []}}),
+    )
+    assert sp.domains.get_nameservers("example.com") == ["ns1.x.test", "ns2.x.test"]
+    assert sp.domains.get_nameservers("example.org") == []
+
+
 def test_contacts_save_read_ensure():
     sp = _transport(
         _ok({"id": "C7"}),

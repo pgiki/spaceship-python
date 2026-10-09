@@ -241,6 +241,10 @@ class DomainsAPI(BaseAPI):
             json={"provider": "custom", "hosts": list(hosts)},
         )
 
+    def get_nameservers(self, domain: str) -> list[str]:
+        """Nameserver hosts for a domain (``basic`` provider yields ``[]``)."""
+        return list(self.get_info(domain).nameservers.hosts or [])
+
     def set_privacy(self, level: str, domain: str, *, user_consent: bool = True) -> Any:
         """Set privacy preference (``public`` or ``high``)."""
         return self._request(
