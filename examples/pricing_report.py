@@ -39,12 +39,12 @@ def _rows(prices: list[TldPrice]) -> list[list[str]]:
     return [
         [
             f".{p.tld}",
-            str(p.register or "-"),
+            str(p.register_price or "-"),
             str(p.renew or "-"),
             str(p.transfer or "-"),
             p.currency,
         ]
-        for p in sorted(prices, key=lambda p: (p.register is None, p.register or 0))
+        for p in sorted(prices, key=lambda p: (p.register_price is None, p.register_price or 0))
     ]
 
 

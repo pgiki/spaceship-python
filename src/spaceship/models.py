@@ -92,12 +92,16 @@ class TldPrice(SpaceshipModel):
     """A storefront pricing-BFF quote for one TLD (``period=P1Y``)."""
 
     tld: str = ""
-    register: Decimal | None = None
+    # NOTE: named ``register_price`` (not ``register``) — a ``register``
+    # field would shadow ``ABCMeta.register`` on the pydantic base, which
+    # pydantic ≥2.11 rejects with a ``UserWarning``. The ``register`` alias
+    # keeps constructor/wire compat (``populate_by_name`` is enabled).
+    register_price: Decimal | None = Field(default=None, alias="register")
     renew: Decimal | None = None
     transfer: Decimal | None = None
     currency: str = "USD"
 
-    @field_validator("register", "renew", "transfer", mode="before")
+    @field_validator("register_price", "renew", "transfer", mode="before")
     @classmethod
     def _parse_amount(cls, v: Any) -> Decimal | None:
         if v is None or v == "":

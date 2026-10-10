@@ -35,7 +35,7 @@ from spaceship import StorefrontPricing
 
 pricing = StorefrontPricing()  # fetcher="playwright" by default
 for quote in pricing.fetch(["com", "org", "ai"]):
-    print(quote.tld, quote.register, quote.renew, quote.transfer)
+    print(quote.tld, quote.register_price, quote.renew, quote.transfer)
 ```
 
 `StorefrontPricing(PricingConfig(...))` accepts `currency`, `batch_size`,

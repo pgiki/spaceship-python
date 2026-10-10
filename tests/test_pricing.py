@@ -132,10 +132,10 @@ def test_fetch_two_pass_merge():
     assert bodies[0]["products"][0]["product"]["plan"]["pricingPlanParams"]["transfer"] == 0
     assert bodies[1]["products"][0]["product"]["plan"]["pricingPlanParams"]["transfer"] == 1
     by_tld = {p.tld: p for p in prices}
-    assert by_tld["com"].register == Decimal("9.68")
+    assert by_tld["com"].register_price == Decimal("9.68")
     assert by_tld["com"].renew == Decimal("10.18")
     assert by_tld["com"].transfer == Decimal("9.68")
-    assert by_tld["si"].register is None
+    assert by_tld["si"].register_price is None
     assert by_tld["si"].renew == Decimal("11.98")
     assert by_tld["si"].transfer is None
     assert "it.com" in by_tld
@@ -190,7 +190,7 @@ def test_fetch_reuses_single_playwright_session():
     assert session.post.call_count == 6
     by_tld = {p.tld: p for p in prices}
     assert by_tld["com"].transfer == Decimal("9.68")
-    assert by_tld["si"].register is None
+    assert by_tld["si"].register_price is None
     assert by_tld["si"].renew == Decimal("11.98")
 
 

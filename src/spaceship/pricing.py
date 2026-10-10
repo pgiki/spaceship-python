@@ -331,7 +331,7 @@ class StorefrontPricing:
     Example:
         >>> pricing = StorefrontPricing()  # fetcher="playwright" by default
         >>> prices = pricing.fetch(["com", "org", "ai"])
-        >>> [(p.tld, p.register, p.renew, p.transfer) for p in prices]
+        >>> [(p.tld, p.register_price, p.renew, p.transfer) for p in prices]
     """
 
     def __init__(self, config: PricingConfig | None = None, **overrides: Any) -> None:
@@ -550,7 +550,7 @@ class StorefrontPricing:
             prices.append(
                 TldPrice(
                     tld=slug_to_tld(slug),
-                    register=vals.get("register"),
+                    register_price=vals.get("register"),
                     renew=vals.get("renew"),
                     transfer=vals.get("transfer"),
                     currency=currency,
