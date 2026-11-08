@@ -87,6 +87,16 @@ class DomainPrivacy(SpaceshipModel):
     contact_form: bool = Field(default=False, alias="contactForm")
     level: str = ""
 
+    @field_validator("contact_form", mode="before")
+    @classmethod
+    def _nullable_contact_form(cls, value: Any) -> Any:
+        return False if value is None else value
+
+    @field_validator("level", mode="before")
+    @classmethod
+    def _nullable_level(cls, value: Any) -> Any:
+        return "" if value is None else value
+
 
 class TldPrice(SpaceshipModel):
     """A storefront pricing-BFF quote for one TLD (``period=P1Y``)."""
@@ -117,6 +127,16 @@ class DomainNameservers(SpaceshipModel):
     provider: str = ""
     hosts: list[str] = Field(default_factory=list)
 
+    @field_validator("provider", mode="before")
+    @classmethod
+    def _nullable_provider(cls, value: Any) -> Any:
+        return "" if value is None else value
+
+    @field_validator("hosts", mode="before")
+    @classmethod
+    def _nullable_hosts(cls, value: Any) -> Any:
+        return [] if value is None else value
+
 
 class DomainContacts(SpaceshipModel):
     """Contact IDs attached to a domain (registrant/admin/tech/billing)."""
@@ -126,6 +146,16 @@ class DomainContacts(SpaceshipModel):
     tech: str = ""
     billing: str = ""
     attributes: list[str] = Field(default_factory=list)
+
+    @field_validator("registrant", "admin", "tech", "billing", mode="before")
+    @classmethod
+    def _nullable_contact_id(cls, value: Any) -> Any:
+        return "" if value is None else value
+
+    @field_validator("attributes", mode="before")
+    @classmethod
+    def _nullable_attributes(cls, value: Any) -> Any:
+        return [] if value is None else value
 
 
 class Domain(SpaceshipModel):
@@ -143,6 +173,26 @@ class Domain(SpaceshipModel):
     privacy: DomainPrivacy = Field(default_factory=DomainPrivacy, alias="privacyProtection")
     nameservers: DomainNameservers = Field(default_factory=DomainNameservers)
     contacts: DomainContacts = Field(default_factory=DomainContacts)
+
+    @field_validator("name", "unicode_name", "lifecycle_status", "verification_status", mode="before")
+    @classmethod
+    def _nullable_domain_text(cls, value: Any) -> Any:
+        return "" if value is None else value
+
+    @field_validator("is_premium", "auto_renew", mode="before")
+    @classmethod
+    def _nullable_domain_flags(cls, value: Any) -> Any:
+        return False if value is None else value
+
+    @field_validator("epp_statuses", mode="before")
+    @classmethod
+    def _nullable_epp_statuses(cls, value: Any) -> Any:
+        return [] if value is None else value
+
+    @field_validator("privacy", "nameservers", "contacts", mode="before")
+    @classmethod
+    def _nullable_domain_components(cls, value: Any) -> Any:
+        return {} if value is None else value
 
 
 class Contact(SpaceshipModel):

@@ -256,13 +256,53 @@ def test_get_info_parses_full_shape():
     assert d.contacts.registrant == "C1"
 
 
+def test_get_info_tolerates_null_optional_domain_fields():
+    sp = _transport(
+        _ok(
+            {
+                "name": "example.com",
+                "unicodeName": None,
+                "isPremium": None,
+                "autoRenew": None,
+                "lifecycleStatus": None,
+                "verificationStatus": None,
+                "eppStatuses": None,
+                "privacyProtection": None,
+                "nameservers": None,
+                "contacts": None,
+            }
+        )
+    )
+    d = sp.domains.get_info("example.com")
+    assert d.name == "example.com"
+    assert d.unicode_name == ""
+    assert d.is_premium is False
+    assert d.auto_renew is False
+    assert d.lifecycle_status == ""
+    assert d.verification_status == ""
+    assert d.epp_statuses == []
+    assert d.privacy.contact_form is False and d.privacy.level == ""
+    assert d.nameservers.hosts == []
+    assert d.contacts.registrant == ""
+
+
 def _register_script(*, nameservers=None):
     calls = [
         _ok({"id": "C9"}),  # PUT /contacts (ensure)
         _accepted("op-1"),  # POST register
         _ok({"status": "pending", "type": "domains_Create"}),
         _ok({"status": "success", "type": "domains_Create"}),
-        _ok({"name": "example.com", "expirationDate": "2027-01-01T00:00:00.000Z"}),
+        _ok(
+            {
+                "name": "example.com",
+                "expirationDate": "2027-01-01T00:00:00.000Z",
+                "lifecycleStatus": None,
+                "verificationStatus": None,
+                "autoRenew": None,
+                "eppStatuses": None,
+                "privacyProtection": None,
+            }
+        ),
     ]
     if nameservers:
         calls.append(_ok({"provider": "custom", "hosts": nameservers}))
