@@ -39,7 +39,7 @@ from .pricing import (
     tld_to_slug,
 )
 
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 __all__ = [
     "AsyncOperation",
     "AsyncOperationError",
